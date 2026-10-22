@@ -1,4 +1,4 @@
-
+CREATE DATABASE loanportfolio;
 -- 1. INSPECT THE SOURCE DATABASE
 
 USE loanportfolio;
@@ -65,14 +65,14 @@ FROM loanportfolio.customer
 GROUP BY `ï»¿customer_id`
 HAVING COUNT(*) > 1;
 
-SELECT `ï»¿loan_id`, COUNT(*) AS occurrences
+SELECT loan_id, COUNT(*) AS occurrences
 FROM loanportfolio.loan
-GROUP BY `ï»¿loan_id`
+GROUP BY loan_id
 HAVING COUNT(*) > 1;
 
-SELECT `ï»¿repayment_id`, COUNT(*) AS occurrences
+SELECT repayment_id, COUNT(*) AS occurrences
 FROM loanportfolio.repayment
-GROUP BY `ï»¿repayment_id`
+GROUP BY repayment_id
 HAVING COUNT(*) > 1;
 
 -- NULL checks.
@@ -92,7 +92,7 @@ SELECT
 FROM loanportfolio.customer;
 
 SELECT
-    SUM(`ï»¿loan_id` IS NULL) AS missing_loan_id,
+    SUM(loan_id IS NULL) AS missing_loan_id,
     SUM(customer_id IS NULL) AS missing_customer_id,
     SUM(loan_amount_ngn IS NULL) AS missing_loan_amount,
     SUM(annual_interest_rate_pct IS NULL) AS missing_interest_rate,
@@ -104,7 +104,7 @@ SELECT
 FROM loanportfolio.loan;
 
 SELECT
-    SUM(`ï»¿repayment_id` IS NULL) AS missing_repayment_id,
+    SUM(repayment_id IS NULL) AS missing_repayment_id,
     SUM(loan_id IS NULL) AS missing_loan_id,
     SUM(payment_date IS NULL) AS missing_payment_date,
     SUM(amount_paid_ngn IS NULL) AS missing_amount_paid,
@@ -127,8 +127,8 @@ WHERE C.`ï»¿customer_id` IS NULL;
 SELECT R.*
 FROM loanportfolio.repayment AS R
 LEFT JOIN loanportfolio.loan AS L
-    ON R.loan_id = L.`ï»¿loan_id`
-WHERE L.`ï»¿loan_id` IS NULL;
+    ON R.loan_id = L.loan_id
+WHERE L.loan_id IS NULL;
 
 -- Financial data checks.
 SELECT *
@@ -185,7 +185,7 @@ WHERE STR_TO_DATE(due_date, '%Y-%m-%d')
 SELECT R.*, L.disbursement_date
 FROM loanportfolio.repayment AS R
 JOIN loanportfolio.loan AS L
-    ON R.loan_id = L.`ï»¿loan_id`
+    ON R.loan_id = L.loan_id
 WHERE STR_TO_DATE(R.payment_date, '%Y-%m-%d')
     < STR_TO_DATE(L.disbursement_date, '%Y-%m-%d');
 
@@ -193,12 +193,13 @@ WHERE STR_TO_DATE(R.payment_date, '%Y-%m-%d')
 SELECT L.*, R.amount_paid_ngn
 FROM loanportfolio.loan AS L
 JOIN loanportfolio.repayment AS R
-    ON L.`ï»¿loan_id` = R.loan_id
+    ON L.loan_id = R.loan_id
 WHERE R.amount_paid_ngn > L.loan_amount_ngn
    OR L.outstanding_balance_ngn > L.loan_amount_ngn;
 
 -- 3. CREATE THE WORKING COPY
-
+CREATE DATABASE loanportfolio_clean;
+USE loanportfolio_clean;
 
 CREATE TABLE loanportfolio_clean.branch LIKE loanportfolio.branch;
 INSERT INTO loanportfolio_clean.branch
@@ -234,12 +235,6 @@ RENAME COLUMN `ï»¿branch_id` TO branch_id;
 
 ALTER TABLE loanportfolio_clean.customer
 RENAME COLUMN `ï»¿customer_id` TO customer_id;
-
-ALTER TABLE loanportfolio_clean.loan
-RENAME COLUMN `ï»¿loan_id` TO loan_id;
-
-ALTER TABLE loanportfolio_clean.repayment
-RENAME COLUMN `ï»¿repayment_id` TO repayment_id;
 
 -- 5. VALIDATE IDENTIFIERS BEFORE ADDING PRIMARY KEYS
 
@@ -388,3 +383,11 @@ JOIN loanportfolio_clean.repayment AS R
     ON L.loan_id = R.loan_id
 GROUP BY L.loan_id, L.loan_amount_ngn
 HAVING SUM(R.amount_paid_ngn) > L.loan_amount_ngn;
+
+SELECT
+    TABLE_NAME,
+    COLUMN_NAME,
+    DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA = 'loanportfolio_clean'
+ORDER BY TABLE_NAME, COLUMN_NAME;

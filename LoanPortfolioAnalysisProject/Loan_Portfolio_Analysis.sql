@@ -24,6 +24,9 @@ CROSS JOIN status_summary
 ORDER BY total_loan_amount DESC;
 
 -- Q3.	Management wants to understand how much money remains outstanding on its loans.
+SELECT SUM(outstanding_balance_ngn) AS total_outstanding_balance
+FROM loan;
+
 SELECT loan_status, SUM(outstanding_balance_ngn) AS total_outstanding_balance
 FROM loan
 GROUP BY loan_status
@@ -65,7 +68,7 @@ ROUND((no_of_borrowed_customers / no_of_all_customers) * 100) AS customer_base_p
 FROM customer_report CROSS JOIN loan_customer_report;
 
 -- How frequently do customers borrow from the bank?
-SELECT borrowing_frequency, COUNT(borrowing_frequency) AS no_of_customers
+SELECT borrowing_frequency, COUNT(customer_id) AS no_of_customers
 FROM (
 	SELECT customer_id, COUNT(*) AS borrowing_frequency
 	FROM loan
@@ -153,10 +156,8 @@ FROM (
 	FROM loan
 	GROUP BY customer_id
     LIMIT 10
-) AS summary
+) AS summary;
 
-
---  Percentage of disdursed amount to top 10 customers
 -- Loan portfolio analysis 
 -- Business objective: Provide management with a clear understanding of the institution's loan portfolio, 
 -- its size, composition and outstanding financial exposure.-- 
@@ -404,3 +405,64 @@ SELECT
     ) AS customer_percentage,
     total_outstanding_balance
 FROM exposure_distribution;
+
+
+-- Loan Repayment Performance Analysis 
+--  Overall repayment collections
+WITH repayment_summary AS (
+    SELECT
+        COUNT(repayment_id) AS total_repayment_transactions,
+        SUM(amount_paid_ngn) AS total_repayment_amount,
+        AVG(amount_paid_ngn) AS average_repayment_amount
+    FROM repayment
+),
+loan_summary AS (
+    SELECT
+        SUM(loan_amount_ngn) AS total_disbursed_amount
+    FROM loan
+)
+SELECT
+    total_repayment_transactions, total_disbursed_amount, total_repayment_amount,
+    average_repayment_amount,
+    (total_repayment_amount * 100.0 / total_disbursed_amount) AS repayment_collection_percentage
+FROM repayment_summary
+CROSS JOIN loan_summary;
+
+-- Q2. Repayment collections over time
+-- yearly repayment analysis 
+SELECT
+    YEAR(payment_date) AS repayment_year,
+    SUM(amount_paid_ngn) AS total_repayment_amount,
+    AVG(amount_paid_ngn) AS average_repayment_amount,
+    COUNT(repayment_id) AS total_repayment_transactions
+FROM repayment
+GROUP BY YEAR(payment_date)
+ORDER BY repayment_year ASC;
+
+-- Monthly repayment analysis 
+SELECT
+    MONTHNAME(payment_date) AS repayment_month,
+    SUM(amount_paid_ngn) AS total_repayment_amount,
+    AVG(amount_paid_ngn) AS average_repayment_amount,
+    COUNT(repayment_id) AS total_repayment_transactions
+FROM repayment
+GROUP BY MONTHNAME(payment_date)
+ORDER BY MONTH(MIN(payment_date)) ASC;
+
+-- Monthly repayment trends across different years  
+SELECT
+    YEAR(payment_date) AS repayment_year,
+    MONTH(payment_date) AS repayment_month_number,
+    MONTHNAME(payment_date) AS repayment_month,
+    SUM(amount_paid_ngn) AS total_repayment_amount,
+    AVG(amount_paid_ngn) AS average_repayment_amount,
+    COUNT(repayment_id) AS total_repayment_transactions
+FROM repayment
+GROUP BY
+    YEAR(payment_date),
+    MONTH(payment_date),
+    MONTHNAME(payment_date)
+ORDER BY
+    repayment_year ASC,
+    repayment_month_number ASC; 
+
